@@ -1,0 +1,30 @@
+{
+  "entities": {
+    "users": {
+      "title": "User Profile",
+      "description": "User profile with tier and usage tracking",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "emailVerified": { "type": "boolean" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "tier": { "enum": ["page", "knight", "duke", "monarch", "emperor"] },
+        "subscriptionId": { "type": "string" },
+        "token": { "type": "string" },
+        "usageCount": { "type": "integer" },
+        "maxUsage": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "tier", "usageCount", "maxUsage"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "users",
+      "description": "User profile document"
+    }
+  }
+}

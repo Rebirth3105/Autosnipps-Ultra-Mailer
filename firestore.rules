@@ -1,0 +1,36 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidUser(data) {
+      return data.uid is string &&
+             data.email is string &&
+             data.tier in ['page', 'knight', 'duke', 'monarch', 'emperor'] &&
+             data.usageCount is int &&
+             data.maxUsage is int;
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if isSignedIn() && resource.data.uid == request.auth.uid;
+      // Allow specific token lookup if the query is restricted to a single email and token
+      allow list: if request.query.limit == 1; 
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && 
+                    isValidUser(request.resource.data) &&
+                    request.resource.data.tier == resource.data.tier &&
+                    request.resource.data.maxUsage == resource.data.maxUsage;
+    }
+  }
+}

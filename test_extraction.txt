@@ -1,0 +1,10 @@
+john.doe@gmail.com
+jane@company.com
+testuser@yahoo.com
++14155552671
++2348031234567
+staff@gmail.com
+support@company.com
++2349012345678
++12125550199
+marketing@yahoo.com

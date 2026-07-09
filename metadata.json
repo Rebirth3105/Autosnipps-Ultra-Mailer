@@ -1,0 +1,6 @@
+{
+  "name": "Autosnipps Ultra",
+  "description": "The world's most advanced bulk email sender and extractor. Engineered for maximum deliverability, Ultrasnipps Intelligence, and straight-to-inbox performance.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
