@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { getFirestore, doc, getDoc, setDoc, updateDoc, increment, onSnapshot, collection, query, where, getDocs, Timestamp, limit } from 'firebase/firestore';
+import { generateSecureToken, hashToken, isTokenExpired, TOKEN_TTL_MS } from '../lib/tokenGenerator';
 
 // Load Firebase config from environment variables
 const firebaseConfig = {
@@ -56,6 +57,8 @@ export const getUserProfile = async (uid: string): Promise<UserProfile | null> =
 };
 
 export const createUserProfile = async (user: User): Promise<UserProfile> => {
+  const token = generateSecureToken();
+  const tokenHash = await hashToken(token);
   const profile: UserProfile = {
     uid: user.uid,
     email: user.email || '',
@@ -65,7 +68,7 @@ export const createUserProfile = async (user: User): Promise<UserProfile> => {
     tier: 'page',
     usageCount: 0,
     maxUsage: 50,
-    token: Math.random().toString(36).substring(2, 15).toUpperCase(), // Generate initial access token
+    token: tokenHash, // Store hash instead of plain token
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now()
   };
@@ -82,22 +85,28 @@ export const updateUsage = async (uid: string, count: number = 1) => {
 };
 
 export const regenerateToken = async (uid: string) => {
-  const newToken = Math.random().toString(36).substring(2, 15).toUpperCase();
+  const token = generateSecureToken();
+  const tokenHash = await hashToken(token);
   await updateDoc(doc(db, 'users', uid), {
-    token: newToken,
+    token: tokenHash, // Store hash instead of plain token
     updatedAt: Timestamp.now()
   });
-  return newToken;
+  return token;
 };
 
 export const validateTokenAndLogin = async (email: string, token: string) => {
+  const tokenHash = await hashToken(token);
   const usersRef = collection(db, 'users');
-  const q = query(usersRef, where('email', '==', email), where('token', '==', token), limit(1));
+  const q = query(usersRef, where('email', '==', email), where('token', '==', tokenHash), limit(1));
   const querySnapshot = await getDocs(q);
   
   if (!querySnapshot.empty) {
-    // Return the first match. Note: In a production env, you'd usually link this to a custom token session.
-    return querySnapshot.docs[0].data() as UserProfile;
+    const userData = querySnapshot.docs[0].data() as UserProfile;
+    // Check if token has expired
+    if (userData.createdAt && isTokenExpired(userData.createdAt)) {
+      return null; // Token expired
+    }
+    return userData;
   }
   return null;
 };
