@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Dashboard } from './components/Dashboard';
 import { LeadGen } from './components/LeadGen';
 import { EmailExtractor } from './components/EmailExtractor';
@@ -213,20 +214,21 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen bg-[#FDFCF0] font-sans text-slate-900 overflow-hidden relative">
-      <div className="atmosphere-bg" />
-      
-      {/* Sidebar */}
-      <Sidebar 
-        activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
-        userTier={userTier}
-        onUpgradeClick={() => setIsUpgradeModalOpen(true)}
-      />
+    <ErrorBoundary>
+      <div className="flex h-screen bg-[#FDFCF0] font-sans text-slate-900 overflow-hidden relative">
+        <div className="atmosphere-bg" />
+        
+        {/* Sidebar */}
+        <Sidebar 
+          activeTab={activeTab} 
+          setActiveTab={setActiveTab} 
+          userTier={userTier}
+          onUpgradeClick={() => setIsUpgradeModalOpen(true)}
+        />
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 relative z-10">
-        <header className="h-20 bg-white/40 backdrop-blur-md border-b border-black/5 px-10 flex items-center justify-between shrink-0">
+        {/* Main Content */}
+        <main className="flex-1 flex flex-col min-w-0 relative z-10">
+          <header className="h-20 bg-white/40 backdrop-blur-md border-b border-black/5 px-10 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-6 flex-1 max-w-2xl">
             <div className="relative w-full group">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-slate-900 transition-colors" />
@@ -275,14 +277,15 @@ export default function App() {
 
         <div className="flex-1 overflow-y-auto p-10 scroll-smooth">
           <div className="max-w-7xl mx-auto">
-            {activeTab === 'dashboard' && (
-              <Dashboard 
-                userTier={userTier} 
-                onUpgradeClick={() => setIsUpgradeModalOpen(true)} 
-                onNewCampaign={() => setIsCreating(true)}
-                onViewAnalytics={() => setActiveTab('analytics')}
-              />
-            )}
+            <ErrorBoundary>
+              {activeTab === 'dashboard' && (
+                <Dashboard 
+                  userTier={userTier} 
+                  onUpgradeClick={() => setIsUpgradeModalOpen(true)} 
+                  onNewCampaign={() => setIsCreating(true)}
+                  onViewAnalytics={() => setActiveTab('analytics')}
+                />
+              )}
             {activeTab === 'campaigns' && (
               <CampaignsView 
                 onNew={() => setIsCreating(true)} 
@@ -321,10 +324,12 @@ export default function App() {
             {activeTab === 'mobile-extractor' && <MobileExtractor userTier={userTier} />}
             {activeTab === 'task-extractor' && <TaskExtractor userTier={userTier} />}
             {activeTab === 'video-studio' && (
-              <VideoStudio 
-                userTier={userTier} 
-                onUpgradeClick={() => setIsUpgradeModalOpen(true)}
-              />
+              <ErrorBoundary>
+                <VideoStudio 
+                  userTier={userTier} 
+                  onUpgradeClick={() => setIsUpgradeModalOpen(true)}
+                />
+              </ErrorBoundary>
             )}
             {activeTab === 'deliverability' && <DeliverabilityCenter userTier={userTier} />}
             {activeTab === 'analytics' && (
@@ -341,6 +346,7 @@ export default function App() {
                 profile={profile}
               />
             )}
+            </ErrorBoundary>
           </div>
         </div>
       </main>
@@ -362,14 +368,16 @@ export default function App() {
 
       {/* Modals */}
       {isCreating && (
-        <CampaignCreator 
-          onClose={() => setIsCreating(false)} 
-          onSave={(c) => {
-            console.log('Saved:', c);
-            setIsCreating(false);
-          }} 
-          userTier={userTier}
-        />
+        <ErrorBoundary>
+          <CampaignCreator 
+            onClose={() => setIsCreating(false)} 
+            onSave={(c) => {
+              console.log('Saved:', c);
+              setIsCreating(false);
+            }} 
+            userTier={userTier}
+          />
+        </ErrorBoundary>
       )}
 
       <UpgradeModal 
@@ -394,5 +402,6 @@ export default function App() {
         )}
       </AnimatePresence>
     </div>
+    </ErrorBoundary>
   );
 }
