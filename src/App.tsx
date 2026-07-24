@@ -87,26 +87,6 @@ export default function App() {
 
     try {
       setLoading(true);
-      // Hardcoded Demo Fallback for User Review
-      if (loginEmail === 'commander@ultrasnipps.com' && loginToken === 'ULTRA-DEMO-2026') {
-        const demoProfile: UserProfile = {
-          uid: 'demo-commander-unique-id',
-          email: 'commander@ultrasnipps.com',
-          displayName: 'Demo Commander',
-          tier: 'emperor',
-          usageCount: 0,
-          maxUsage: 9999,
-          emailVerified: true,
-          createdAt: Timestamp.now(),
-          updatedAt: Timestamp.now(),
-          token: 'ULTRA-DEMO-2026'
-        };
-        setProfile(demoProfile);
-        setUserTier(demoProfile.tier);
-        setUser({ uid: demoProfile.uid, email: demoProfile.email, displayName: demoProfile.displayName } as any);
-        return;
-      }
-
       const userProfile = await validateTokenAndLogin(loginEmail, loginToken);
       if (userProfile) {
         // For the demo, we set the profile directly. 
