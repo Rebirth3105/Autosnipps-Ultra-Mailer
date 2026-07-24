@@ -1,11 +1,18 @@
 import { GoogleGenAI } from "@google/genai";
+import { sanitizeText, validateUrl } from "../lib/validators";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 export const getGeminiResponse = async (prompt: string, history: { role: 'user' | 'model', parts: { text: string }[] }[]) => {
+  // Validate prompt
+  const sanitizedPrompt = sanitizeText(prompt, 5000);
+  if (!sanitizedPrompt) {
+    throw new Error('Prompt cannot be empty');
+  }
+
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
-    contents: history.concat([{ role: 'user', parts: [{ text: prompt }] }]),
+    contents: history.concat([{ role: 'user', parts: [{ text: sanitizedPrompt }] }]),
     config: {
       systemInstruction: "You are an expert email marketing assistant. Help the user draft, optimize, and strategize their email campaigns. Keep responses professional, concise, and focused on high conversion rates.",
     },
@@ -14,30 +21,66 @@ export const getGeminiResponse = async (prompt: string, history: { role: 'user' 
 };
 
 export const draftEmail = async (topic: string, audience: string, tone: string) => {
+  // Validate inputs
+  const sanitizedTopic = sanitizeText(topic, 500);
+  const sanitizedAudience = sanitizeText(audience, 500);
+  const sanitizedTone = sanitizeText(tone, 200);
+
+  if (!sanitizedTopic || !sanitizedAudience || !sanitizedTone) {
+    throw new Error('All fields are required');
+  }
+
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
-    contents: `Draft a professional email about ${topic} for an audience of ${audience}. The tone should be ${tone}. Include a subject line.`,
+    contents: `Draft a professional email about ${sanitizedTopic} for an audience of ${sanitizedAudience}. The tone should be ${sanitizedTone}. Include a subject line.`,
   });
   return response.text;
 };
 
 export const generateLeadMagnet = async (business: string, targetAudience: string, offerType: string) => {
+  // Validate inputs
+  const sanitizedBusiness = sanitizeText(business, 500);
+  const sanitizedAudience = sanitizeText(targetAudience, 500);
+  const sanitizedOfferType = sanitizeText(offerType, 500);
+
+  if (!sanitizedBusiness || !sanitizedAudience || !sanitizedOfferType) {
+    throw new Error('All fields are required');
+  }
+
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
-    contents: `Generate a high-converting landing page copy and a lead magnet outline for a ${business} business targeting ${targetAudience}. The offer type is ${offerType}. Include a catchy headline, subheadline, 3-5 benefit bullet points, and a strong call-to-action.`,
+    contents: `Generate a high-converting landing page copy and a lead magnet outline for a ${sanitizedBusiness} business targeting ${sanitizedAudience}. The offer type is ${sanitizedOfferType}. Include a catchy headline, subheadline, 3-5 benefit bullet points, and a strong call-to-action.`,
   });
   return response.text;
 };
 
 export const extractEmails = async (source: string, isUrl: boolean, isDeepScan: boolean = false) => {
+  // Validate source
+  if (!source || typeof source !== 'string') {
+    throw new Error('Invalid source');
+  }
+
+  let validatedSource = source.trim();
+  
+  if (isUrl) {
+    if (!validateUrl(validatedSource)) {
+      throw new Error('Invalid URL format');
+    }
+  } else {
+    validatedSource = sanitizeText(validatedSource, 50000);
+    if (!validatedSource) {
+      throw new Error('Source text is empty or invalid');
+    }
+  }
+
   const prompt = isUrl 
-    ? `Analyze the public content of this URL: ${source}. 
+    ? `Analyze the public content of this URL: ${validatedSource}. 
        1. Extract all email addresses found.
        2. For each email, identify the likely department or role (e.g., Support, Sales, Personal).
        3. Identify the domain's primary business type.
        ${isDeepScan ? "4. Perform a DEEP SCAN: Identify executive names and titles if linked to emails. Find social media profile handles if visible. Note any regional indicators for each address." : ""}
        Return the results in a clean, professional markdown format with a table for the emails.`
-    : `Analyze the following text: \n\n${source}\n\n
+    : `Analyze the following text: \n\n${validatedSource}\n\n
        1. Extract all email addresses found.
        2. For each email, identify the likely department or role.
        ${isDeepScan ? "3. Perform a DEEP SCAN: Look for hidden patterns, role associations, and potential secondary contacts. Analyze the context surrounding each address." : ""}
@@ -55,14 +98,32 @@ export const extractEmails = async (source: string, isUrl: boolean, isDeepScan: 
 };
 
 export const extractMobileNumbers = async (source: string, isUrl: boolean, isDeepScan: boolean = false) => {
+  // Validate source
+  if (!source || typeof source !== 'string') {
+    throw new Error('Invalid source');
+  }
+
+  let validatedSource = source.trim();
+  
+  if (isUrl) {
+    if (!validateUrl(validatedSource)) {
+      throw new Error('Invalid URL format');
+    }
+  } else {
+    validatedSource = sanitizeText(validatedSource, 50000);
+    if (!validatedSource) {
+      throw new Error('Source text is empty or invalid');
+    }
+  }
+
   const prompt = isUrl 
-    ? `Analyze the public content of this URL: ${source}. 
+    ? `Analyze the public content of this URL: ${validatedSource}. 
        1. Extract all mobile/phone numbers found.
        2. For each number, identify the likely region or country based on the prefix.
        3. Identify the context of the number (e.g., Office, Support, WhatsApp, Personal).
        ${isDeepScan ? "4. Perform a DEEP SCAN: Identify network carrier signatures from HTML metadata and list associated business names for each contact number." : ""}
        Return the results in a clean, professional markdown format with a table for the numbers.`
-    : `Analyze the following text: \n\n${source}\n\n
+    : `Analyze the following text: \n\n${validatedSource}\n\n
        1. Extract all mobile/phone numbers found.
        2. For each number, identify the likely region or country.
        3. Identify the context of the number.

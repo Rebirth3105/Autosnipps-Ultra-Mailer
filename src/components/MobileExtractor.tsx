@@ -7,6 +7,7 @@ import { extractEmails, extractMobileNumbers } from '../services/gemini';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '../lib/utils';
 import { PhoneNumberUtil, PhoneNumberFormat } from 'google-libphonenumber';
+import { validateUrl, validateEmail, sanitizeText } from '../lib/validators';
 
 const phoneUtil = PhoneNumberUtil.getInstance();
 
@@ -92,9 +93,40 @@ export function MobileExtractor({ userTier }: MobileExtractorProps) {
   }, [extractedNumbersList, lookups, filterCarrier, filterCountry, sortOrder]);
 
   const handleExtract = async () => {
-    if (inputType !== 'account' && inputType !== 'file' && !source.trim()) return;
-    if (inputType === 'file' && !fileContent.trim()) return;
-    if (inputType === 'account' && (!accConfig.email || !accConfig.password)) return;
+    // Input validation
+    if (inputType === 'url') {
+      if (!source.trim()) {
+        setStatus('Please enter a URL.');
+        return;
+      }
+      if (!validateUrl(source.trim())) {
+        setStatus('Invalid URL format. Please use http:// or https://');
+        return;
+      }
+    } else if (inputType === 'text') {
+      if (!source.trim()) {
+        setStatus('Please enter text to extract from.');
+        return;
+      }
+      if (source.length > 50000) {
+        setStatus('Text input exceeds 50,000 character limit.');
+        return;
+      }
+    } else if (inputType === 'file') {
+      if (!fileContent.trim()) {
+        setStatus('Please upload a file.');
+        return;
+      }
+    } else if (inputType === 'account') {
+      if (!accConfig.email || !accConfig.password) {
+        setStatus('Please provide email and password.');
+        return;
+      }
+      if (!validateEmail(accConfig.email)) {
+        setStatus('Invalid email format for account login.');
+        return;
+      }
+    }
 
     setIsExtracting(true);
     setResult(null);

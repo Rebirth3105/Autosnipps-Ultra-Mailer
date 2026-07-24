@@ -4,6 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import axios from "axios";
 import dotenv from "dotenv";
+import { validateEmail, validatePhoneNumber, sanitizeText, validateUrl } from "./src/lib/validators";
 
 dotenv.config();
 
@@ -21,8 +22,12 @@ async function startServer() {
     const { email } = req.body;
     const apiKey = process.env.HUNTER_API_KEY;
 
-    if (!email) {
+    if (!email || typeof email !== 'string') {
       return res.status(400).json({ error: "Email is required" });
+    }
+
+    if (!validateEmail(email)) {
+      return res.status(400).json({ error: "Invalid email format" });
     }
 
     if (!apiKey) {
@@ -68,6 +73,15 @@ async function startServer() {
       return res.status(400).json({ error: "Recipient number and message body are required" });
     }
 
+    if (!validatePhoneNumber(to)) {
+      return res.status(400).json({ error: "Invalid phone number format" });
+    }
+
+    const sanitizedBody = sanitizeText(body, 1000);
+    if (!sanitizedBody) {
+      return res.status(400).json({ error: "Message body is empty or invalid" });
+    }
+
     if (!accountSid || !authToken || !fromNumber) {
       console.warn("Twilio credentials missing. Returning mock SMS response.");
       return res.json({
@@ -82,7 +96,7 @@ async function startServer() {
       const twilio = (await import("twilio")).default;
       const client = twilio(accountSid, authToken);
       const message = await client.messages.create({
-        body,
+        body: sanitizedBody,
         from: fromNumber,
         to
       });
@@ -102,8 +116,12 @@ async function startServer() {
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
 
-    if (!phoneNumber) {
+    if (!phoneNumber || typeof phoneNumber !== 'string') {
       return res.status(400).json({ error: "Phone number is required" });
+    }
+
+    if (!validatePhoneNumber(phoneNumber)) {
+      return res.status(400).json({ error: "Invalid phone number format" });
     }
 
     if (!accountSid || !authToken) {
@@ -139,6 +157,29 @@ async function startServer() {
   // API Route for Multi-SMTP Email Sending with Fallback (Mailer Service)
   app.post("/api/send-email", async (req, res) => {
     const { from, to, subject, text, html } = req.body;
+
+    // Validate required fields
+    if (!from || !to || !subject) {
+      return res.status(400).json({ error: "From, To, and Subject are required" });
+    }
+
+    // Validate email addresses
+    if (!validateEmail(from)) {
+      return res.status(400).json({ error: "Invalid 'from' email address" });
+    }
+
+    const toEmails = Array.isArray(to) ? to : [to];
+    for (const email of toEmails) {
+      if (!validateEmail(email)) {
+        return res.status(400).json({ error: `Invalid 'to' email address: ${email}` });
+      }
+    }
+
+    // Sanitize text content
+    const sanitizedSubject = sanitizeText(subject, 500);
+    const sanitizedText = text ? sanitizeText(text, 50000) : undefined;
+    const sanitizedHtml = html ? sanitizeText(html, 50000) : undefined;
+
     const nodemailer = (await import("nodemailer")).default;
 
     const createTransporter = (prefix: string) => {
@@ -176,7 +217,13 @@ async function startServer() {
     const secondary = createTransporter("SECONDARY");
     const tertiary = createTransporter("TERTIARY");
 
-    const mailOptions = { from, to, subject, text, html };
+    const mailOptions = { 
+      from, 
+      to: toEmails, 
+      subject: sanitizedSubject, 
+      text: sanitizedText || undefined, 
+      html: sanitizedHtml || undefined 
+    };
 
     // Check if we are using placeholder credentials
     const isMock = (prefix: string) => {
@@ -234,7 +281,20 @@ async function startServer() {
   // API Route for DNS Validation (SPF, DKIM, DMARC)
   app.post("/api/validate-dns", async (req, res) => {
     const { domain } = req.body;
-    if (!domain) return res.status(400).json({ error: "Domain is required" });
+    
+    if (!domain || typeof domain !== 'string') {
+      return res.status(400).json({ error: "Domain is required" });
+    }
+
+    const sanitizedDomain = sanitizeText(domain.trim(), 255);
+    if (!sanitizedDomain) {
+      return res.status(400).json({ error: "Invalid domain" });
+    }
+
+    // Basic domain validation (alphanumeric, dots, hyphens)
+    if (!/^[a-zA-Z0-9.-]+$/.test(sanitizedDomain)) {
+      return res.status(400).json({ error: "Invalid domain format" });
+    }
 
     const dns = await import("dns");
     const results: any = { spf: null, dkim: null, dmarc: null };
@@ -250,12 +310,12 @@ async function startServer() {
 
     try {
       // SPF
-      results.spf = await resolveTxt(domain);
+      results.spf = await resolveTxt(sanitizedDomain);
       
       // DKIM (common selectors)
       const dkimSelectors = ['s1', 'google', 'mandrill', 'k1', 'default'];
       for (const selector of dkimSelectors) {
-        const dkimRecords = await resolveTxt(`${selector}._domainkey.${domain}`);
+        const dkimRecords = await resolveTxt(`${selector}._domainkey.${sanitizedDomain}`);
         if (dkimRecords.length > 0) {
           results.dkim = { selector, records: dkimRecords };
           break;
@@ -263,9 +323,9 @@ async function startServer() {
       }
 
       // DMARC
-      results.dmarc = await resolveTxt(`_dmarc.${domain}`);
+      results.dmarc = await resolveTxt(`_dmarc.${sanitizedDomain}`);
 
-      res.json({ success: true, domain, results });
+      res.json({ success: true, domain: sanitizedDomain, results });
     } catch (error: any) {
       res.status(500).json({ error: "DNS lookup failed", details: error.message });
     }
@@ -279,7 +339,18 @@ async function startServer() {
       return res.status(400).json({ error: "Email, password, and provider are required" });
     }
 
-    console.log(`Intelligence Extraction requested for ${email} on ${provider} (Type: ${type})`);
+    if (!validateEmail(email)) {
+      return res.status(400).json({ error: "Invalid email format" });
+    }
+
+    const sanitizedPassword = sanitizeText(password, 1000);
+    const sanitizedProvider = sanitizeText(provider, 100);
+
+    if (!sanitizedPassword || !sanitizedProvider) {
+      return res.status(400).json({ error: "Invalid password or provider" });
+    }
+
+    console.log(`Intelligence Extraction requested for ${email} on ${sanitizedProvider} (Type: ${type})`);
 
     // In a production environment, you would use an IMAP library here
     // e.g., imapflow to connect and fetch emails/contacts

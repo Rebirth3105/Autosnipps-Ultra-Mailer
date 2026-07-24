@@ -7,6 +7,7 @@ import { extractEmails } from '../services/gemini';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '../lib/utils';
 import { verifyEmail } from '../services/emailVerification';
+import { validateUrl, validateEmail, sanitizeText } from '../lib/validators';
 
 interface EmailExtractorProps {
   userTier: 'page' | 'knight' | 'duke' | 'monarch' | 'emperor';
@@ -56,9 +57,40 @@ export function EmailExtractor({ userTier }: EmailExtractorProps) {
   }, [result, sortOrder]);
 
   const handleExtract = async () => {
-    if (inputType !== 'account' && inputType !== 'file' && !source.trim()) return;
-    if (inputType === 'file' && !fileContent.trim()) return;
-    if (inputType === 'account' && (!accConfig.email || !accConfig.password)) return;
+    // Input validation
+    if (inputType === 'url') {
+      if (!source.trim()) {
+        setStatus('Please enter a URL.');
+        return;
+      }
+      if (!validateUrl(source.trim())) {
+        setStatus('Invalid URL format. Please use http:// or https://');
+        return;
+      }
+    } else if (inputType === 'text') {
+      if (!source.trim()) {
+        setStatus('Please enter text to extract from.');
+        return;
+      }
+      if (source.length > 50000) {
+        setStatus('Text input exceeds 50,000 character limit.');
+        return;
+      }
+    } else if (inputType === 'file') {
+      if (!fileContent.trim()) {
+        setStatus('Please upload a file.');
+        return;
+      }
+    } else if (inputType === 'account') {
+      if (!accConfig.email || !accConfig.password) {
+        setStatus('Please provide email and password.');
+        return;
+      }
+      if (!validateEmail(accConfig.email)) {
+        setStatus('Invalid email format for account login.');
+        return;
+      }
+    }
 
     setIsExtracting(true);
     setResult(null);
@@ -98,7 +130,8 @@ export function EmailExtractor({ userTier }: EmailExtractorProps) {
       } else if (inputType === 'file') {
         content = await extractEmails(fileContent, false) || '';
       } else {
-        content = await extractEmails(source, inputType === 'url', isDeepScan) || '';
+        const sanitizedSource = sanitizeText(source, 50000);
+        content = await extractEmails(sanitizedSource, inputType === 'url', isDeepScan) || '';
       }
       
       setResult(content);
