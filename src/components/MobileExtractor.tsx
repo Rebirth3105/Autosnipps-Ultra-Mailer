@@ -379,6 +379,15 @@ export function MobileExtractor({ userTier }: MobileExtractorProps) {
 
             {inputType === 'account' ? (
               <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                {/* Demo Mode Warning */}
+                <div className="px-4 py-3 bg-sky-50 border border-sky-200 rounded-xl flex items-start gap-3">
+                  <AlertTriangle className="w-4 h-4 text-sky-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-xs text-sky-700">
+                    <p className="font-bold mb-1">Demo Mode Only</p>
+                    <p>Account extraction is currently in demo mode. Actual contact store connections are not supported. Results will be simulated for testing purposes.</p>
+                  </div>
+                </div>
+                
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Provider</label>
