@@ -158,8 +158,8 @@ export function CampaignCreator({ onClose, onSave, userTier }: CampaignCreatorPr
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
-            from: "Autosnipps <noreply@autosnipps.com>",
-            to: recipients.length > 0 ? recipients.join(',') : "recipient@example.com",
+            from: "noreply@autosnipps.com",
+            to: recipients.length > 0 ? recipients : ["recipient@example.com"],
             subject: subject || "New Campaign from Autosnipps",
             text: content,
             html: `<div style="font-family: sans-serif; line-height: 1.6; color: #333;">${content.replace(/\n/g, '<br>')}</div>`

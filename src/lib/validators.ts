@@ -9,8 +9,13 @@
  */
 export function validateEmail(email: string): boolean {
   if (!email || typeof email !== 'string') return false;
+
+  const trimmed = email.trim();
+  const extractedEmail = trimmed.match(/<([^>]+)>$/)?.[1] ?? trimmed;
+  const normalized = extractedEmail.trim();
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email.trim()) && email.length <= 254;
+
+  return emailRegex.test(normalized) && normalized.length <= 254;
 }
 
 /**

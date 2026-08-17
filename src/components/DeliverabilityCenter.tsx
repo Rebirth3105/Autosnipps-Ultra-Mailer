@@ -48,7 +48,7 @@ export function DeliverabilityCenter({ userTier }: DeliverabilityCenterProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          from: 'Ultrasnipps Mailer <mailer@localhost>',
+          from: 'Ultrasnipps Mailer <noreply@autosnipps.com>',
           to: smtpTestEmail,
           subject: '🔥 Ultrasnipps Intelligence - SMTP Test Connection',
           text: 'This is a test email from your Ultrasnipps Mailer service. Your multi-relay SMTP configuration is active and routing correctly.',

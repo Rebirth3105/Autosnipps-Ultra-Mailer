@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { UserPlus, Mail, Tag, MoreHorizontal, Search, Filter, X, Plus, Trash2, ShieldCheck, CheckCircle2, AlertCircle, Loader2, RefreshCw } from 'lucide-react';
+import React, { useState, useMemo, useRef } from 'react';
+import { UserPlus, Mail, Tag, MoreHorizontal, Search, Filter, X, Plus, Trash2, ShieldCheck, CheckCircle2, AlertCircle, Loader2, RefreshCw, Upload } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Modal } from './Modal';
 import { verifyEmail } from '../services/emailVerification';
@@ -23,6 +23,7 @@ export function RecipientsView({ onDelete, onUpdateTags }: RecipientsViewProps) 
   const [newTag, setNewTag] = useState('');
   const [verifyingIds, setVerifyingIds] = useState<Set<string>>(new Set());
   const [isBulkVerifying, setIsBulkVerifying] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const allTags = useMemo(() => {
     const tags = new Set<string>();
@@ -84,6 +85,39 @@ export function RecipientsView({ onDelete, onUpdateTags }: RecipientsViewProps) 
     }
   };
 
+  const handleImportCsv = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const text = await file.text();
+    const lines = text.trim().split(/\r?\n/).filter(Boolean);
+    if (lines.length < 2) return;
+
+    const header = lines[0].split(',').map(col => col.trim().toLowerCase());
+    const nameIndex = header.findIndex(col => col === 'name');
+    const emailIndex = header.findIndex(col => col === 'email');
+
+    if (nameIndex === -1 || emailIndex === -1) return;
+
+    const importedRecipients = lines.slice(1).map((line, index) => {
+      const values = line.split(',');
+      const name = values[nameIndex]?.trim() || `Imported ${index + 1}`;
+      const email = values[emailIndex]?.trim() || '';
+      return {
+        id: `${Date.now()}-${index}`,
+        name,
+        email,
+        status: 'active',
+        tags: ['imported'],
+        verificationStatus: 'unknown',
+        verificationScore: 0,
+      };
+    }).filter(recipient => recipient.email);
+
+    setRecipients(prev => [...prev, ...importedRecipients]);
+    event.target.value = '';
+  };
+
   return (
     <div className="space-y-12">
       <div className="flex items-center justify-between">
@@ -100,9 +134,20 @@ export function RecipientsView({ onDelete, onUpdateTags }: RecipientsViewProps) 
             {isBulkVerifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
             Verify All
           </button>
-          <button className="flex items-center gap-2 bg-white/60 border border-black/5 text-slate-600 px-6 py-3 rounded-2xl font-bold text-sm hover:bg-white/80 transition-all">
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-2 bg-white/60 border border-black/5 text-slate-600 px-6 py-3 rounded-2xl font-bold text-sm hover:bg-white/80 transition-all"
+          >
+            <Upload className="w-4 h-4" />
             Import CSV
           </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            onChange={handleImportCsv}
+            className="hidden"
+          />
           <button className="flex items-center gap-2 bg-sky-500 text-white px-6 py-3 rounded-2xl font-bold text-sm hover:bg-sky-600 transition-all shadow-lg shadow-sky-500/20">
             <UserPlus className="w-4 h-4" />
             Add Recipient
