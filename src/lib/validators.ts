@@ -46,26 +46,36 @@ export function validatePhoneNumber(phone: string): boolean {
 
 /**
  * Sanitize text input
- * Removes HTML/script tags and trims whitespace
- * Limits length to prevent buffer overflows
+ * Removes HTML/script tags, event handlers, and dangerous URL schemes,
+ * then trims whitespace and enforces a maximum length.
  */
 export function sanitizeText(text: string, maxLength: number = 1000): string {
   if (!text || typeof text !== 'string') return '';
-  
-  // Trim whitespace
+
   let sanitized = text.trim();
-  
-  // Remove HTML/script tags
-  sanitized = sanitized.replace(/<[^>]*>/g, '');
-  
-  // Remove control characters
+
+  // Drop control chars that can interfere with parsing or output rendering.
   sanitized = sanitized.replace(/[\x00-\x1F\x7F]/g, '');
-  
-  // Limit length
+
+  // Remove full script/style blocks and inline event handlers.
+  sanitized = sanitized.replace(/<\s*(script|style|iframe|object|embed|svg|math|base|link|meta)\b[\s\S]*?<\s*\/\s*\1\s*>/gi, ' ');
+  sanitized = sanitized.replace(/<\s*(script|style|iframe|object|embed|svg|math|base|link|meta)\b[^>]*>/gi, ' ');
+  sanitized = sanitized.replace(/\s+(on[a-z0-9_-]+)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, ' ');
+
+  // Strip HTML tags after removing known dangerous tags/attributes.
+  sanitized = sanitized.replace(/<[^>]*>/g, ' ');
+
+  // Remove dangerous URL schemes that can trigger script execution.
+  sanitized = sanitized.replace(/\b(?:javascript|vbscript):/gi, '');
+  sanitized = sanitized.replace(/\bdata\s*:\s*(?:text\/html|image\/svg\+xml|application\/javascript)/gi, '');
+
+  // Normalize whitespace before applying length limits.
+  sanitized = sanitized.replace(/\s+/g, ' ').trim();
+
   if (sanitized.length > maxLength) {
-    sanitized = sanitized.substring(0, maxLength);
+    sanitized = sanitized.substring(0, maxLength).trimEnd();
   }
-  
+
   return sanitized;
 }
 
