@@ -1,0 +1,25 @@
+name: Autonomous Agent
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 */1 * * *"   # runs every 1 hour
+
+jobs:
+  run-agent:
+    runs-on: ubuntu-latest
+
+    env:
+      GITHUB_TOKEN: ${{ secrets.AGENTAPI }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Trigger agent backend
+        run: |
+          curl -X POST http://YOUR_AGENT_SERVER_IP:5000/run \
+          -H "Content-Type: application/json" \
+          -H "Authorization: Bearer $GITHUB_TOKEN" \
+          -d '{"repo": "${{ github.repository }}"}'
