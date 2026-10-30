@@ -12,14 +12,21 @@ jobs:
 
     env:
       GITHUB_TOKEN: ${{ secrets.AGENTAPI }}
+      AGENT_SERVER_URL: ${{ secrets.AGENT_SERVER_URL }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Trigger agent backend
+        if: ${{ secrets.AGENT_SERVER_URL != '' }}
         run: |
-          curl -X POST http://YOUR_AGENT_SERVER_IP:5000/run \
-          -H "Content-Type: application/json" \
-          -H "Authorization: Bearer $GITHUB_TOKEN" \
-          -d '{"repo": "${{ github.repository }}"}'
+          curl --fail --silent --show-error \
+            -X POST "$AGENT_SERVER_URL/run" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -d '{"repo":"${{ github.repository }}"}'
+
+      - name: Skip agent backend if URL is not configured
+        if: ${{ secrets.AGENT_SERVER_URL == '' }}
+        run: echo "AGENT_SERVER_URL secret is not configured. Skipping agent trigger."
